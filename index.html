@@ -3,53 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Hábitos 30 Días</title>
+    <title>Hábitos Minimal</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --txt: #e0e0e0; --accent: #81c784; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--txt); padding: 20px; margin: 0; }
-        .habito { background: var(--card); display: flex; justify-content: space-between; padding: 15px; margin-bottom: 10px; border-radius: 10px; cursor: pointer; }
-        .completado { border: 1px solid var(--accent); opacity: 0.6; }
-        .controles { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex-grow: 1; padding: 10px; border-radius: 5px; border: none; background: #2c2c2c; color: white; }
-        button { padding: 10px; border-radius: 5px; border: none; background: var(--accent); color: #121212; font-weight: bold; }
-        canvas { background: #1e1e1e; padding: 10px; border-radius: 10px; margin-top: 20px; }
-        h3 { color: var(--accent); margin-top: 30px; }
+        :root { 
+            --bg: #000000;      /* Negro puro */
+            --card: #111111;    /* Gris casi negro para tarjetas */
+            --txt: #FFFDD0;     /* Color Cremita */
+            --accent: #F5F5DC;  /* Beige suave */
+            --danger: #ff4444;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            background: var(--bg); color: var(--txt); 
+            padding: 20px; margin: 0; 
+        }
+
+        h2, h3 { color: var(--accent); font-weight: 300; letter-spacing: 1px; }
+
+        .input-group { display: flex; gap: 10px; margin-bottom: 30px; }
+        input { 
+            flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--txt); 
+            background: transparent; color: var(--txt); font-size: 16px;
+        }
+        button.add-btn { 
+            padding: 12px 20px; border-radius: 8px; border: none; 
+            background: var(--txt); color: #000; font-weight: bold; 
+        }
+
+        .habito { 
+            background: var(--card); display: flex; justify-content: space-between; 
+            align-items: center; padding: 18px; margin-bottom: 12px; 
+            border-radius: 12px; border: 1px solid #222;
+        }
+        .info-habito { flex-grow: 1; cursor: pointer; }
+        .completado { border-color: var(--txt); background: #0a0a0a; }
+        .completado span { opacity: 0.5; text-decoration: line-through; }
+
+        .btn-delete { 
+            background: transparent; border: none; color: var(--danger); 
+            margin-left: 15px; font-size: 18px; cursor: pointer; opacity: 0.6;
+        }
+
+        .stats-container { 
+            background: var(--card); padding: 20px; border-radius: 15px; 
+            margin-top: 40px; border: 1px solid #222;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Hábitos Hoy</h2>
-    <div class="controles">
-        <input type="text" id="nuevoHabito" placeholder="Nuevo hábito...">
-        <button onclick="agregarHabito()">+</button>
+    <h2>Mis Hábitos</h2>
+    <div class="input-group">
+        <input type="text" id="nuevoHabito" placeholder="Ej: Leer 10 páginas">
+        <button class="add-btn" onclick="agregarHabito()">+</button>
     </div>
     
     <div id="listaHabitos"></div>
 
-    <h3>Progreso (Últimos 30 días)</h3>
-    <canvas id="graficoHabitos" width="400" height="200"></canvas>
+    <div class="stats-container">
+        <h3>Efectividad por Hábito</h3>
+        <canvas id="graficoBarras"></canvas>
+    </div>
 
     <script>
-        let datos = JSON.parse(localStorage.getItem('app_habitos_v3')) || { habitos: [], historial: {} };
+        let datos = JSON.parse(localStorage.getItem('habitos_v4')) || [];
 
-        // 1. Lógica de Reinicio Diario
         function verificarReinicio() {
             const hoy = new Date().toLocaleDateString();
-            const ultimaFecha = localStorage.getItem('ultima_conexion');
+            const ultimaFecha = localStorage.getItem('fecha_v4');
 
             if (ultimaFecha && ultimaFecha !== hoy) {
-                // Antes de reiniciar, guardamos cuánto logramos ayer para el gráfico
-                const total = datos.habitos.length;
-                const hechos = datos.habitos.filter(h => h.check).length;
-                const porcentaje = total > 0 ? (hechos / total) * 100 : 0;
-                
-                datos.historial[ultimaFecha] = porcentaje;
-                
-                // Limpiar los hábitos para el nuevo día
-                datos.habitos.forEach(h => h.check = false);
+                datos.forEach(h => {
+                    h.totalDias = (h.totalDias || 1) + 1;
+                    if (h.check) h.diasCumplidos = (h.diasCumplidos || 0) + 1;
+                    h.check = false;
+                });
             }
-            localStorage.setItem('ultima_conexion', hoy);
+            localStorage.setItem('fecha_v4', hoy);
             render();
             actualizarGrafico();
         }
@@ -57,58 +89,75 @@
         function render() {
             const contenedor = document.getElementById('listaHabitos');
             contenedor.innerHTML = '';
-            datos.habitos.forEach((h, i) => {
+            datos.forEach((h, i) => {
                 contenedor.innerHTML += `
-                    <div class="habito ${h.check ? 'completado' : ''}" onclick="toggle(${i})">
-                        ${h.nombre} <span>${h.check ? '✅' : '⚪'}</span>
+                    <div class="habito ${h.check ? 'completado' : ''}">
+                        <div class="info-habito" onclick="toggle(${i})">
+                            <span>${h.nombre}</span>
+                        </div>
+                        <div style="display:flex; align-items:center;">
+                            <span onclick="toggle(${i})" style="cursor:pointer">${h.check ? '✅' : '⚪'}</span>
+                            <button class="btn-delete" onclick="eliminarHabito(${i})">×</button>
+                        </div>
                     </div>`;
             });
-            localStorage.setItem('app_habitos_v3', JSON.stringify(datos));
+            localStorage.setItem('habitos_v4', JSON.stringify(datos));
         }
 
         function agregarHabito() {
             const input = document.getElementById('nuevoHabito');
-            if(input.value) {
-                datos.habitos.push({nombre: input.value, check: false});
+            if(input.value.trim()) {
+                datos.push({ nombre: input.value, check: false, totalDias: 1, diasCumplidos: 0 });
                 input.value = '';
                 render();
+                actualizarGrafico();
             }
         }
 
         function toggle(i) {
-            datos.habitos[i].check = !datos.habitos[i].check;
+            datos[i].check = !datos[i].check;
             render();
-            actualizarGrafico(); // Actualiza el gráfico en tiempo real hoy
+            actualizarGrafico();
         }
 
-        // 2. Lógica del Gráfico
-        let miChart;
+        function eliminarHabito(i) {
+            if(confirm('¿Borrar este hábito y sus estadísticas?')) {
+                datos.splice(i, 1);
+                render();
+                actualizarGrafico();
+            }
+        }
+
+        let chart;
         function actualizarGrafico() {
-            const ctx = document.getElementById('graficoHabitos').getContext('2d');
-            const etiquetas = Object.keys(datos.historial).slice(-30); // Últimos 30 registros
-            const valores = Object.values(datos.historial).slice(-30);
+            const ctx = document.getElementById('graficoBarras').getContext('2d');
+            const nombres = datos.map(h => h.nombre);
+            const porcentajes = datos.map(h => {
+                let actualHecho = h.check ? 1 : 0;
+                let pct = (( (h.diasCumplidos || 0) + actualHecho) / (h.totalDias || 1)) * 100;
+                return Math.round(pct);
+            });
 
-            // Añadir el progreso de hoy al final del gráfico
-            const hechosHoy = datos.habitos.filter(h => h.check).length;
-            const totalHoy = datos.habitos.length;
-            etiquetas.push("Hoy");
-            valores.push(totalHoy > 0 ? (hechosHoy / totalHoy) * 100 : 0);
-
-            if (miChart) miChart.destroy();
-            miChart = new Chart(ctx, {
-                type: 'line',
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
                 data: {
-                    labels: etiquetas,
+                    labels: nombres,
                     datasets: [{
                         label: '% de éxito',
-                        data: valores,
-                        borderColor: '#81c784',
-                        tension: 0.3,
-                        fill: true,
-                        backgroundColor: 'rgba(129, 199, 132, 0.1)'
+                        data: porcentajes,
+                        backgroundColor: '#FFFDD0', // Cremita
+                        borderRadius: 5
                     }]
                 },
-                options: { scales: { y: { min: 0, max: 100 } } }
+                options: {
+                    indexAxis: 'y',
+                    scales: { 
+                        x: { min: 0, max: 100, grid: { color: '#222' }, ticks: { color: '#FFFDD0' } },
+                        y: { grid: { display: false }, ticks: { color: '#FFFDD0' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
             });
         }
 
@@ -116,4 +165,3 @@
     </script>
 </body>
 </html>
-
